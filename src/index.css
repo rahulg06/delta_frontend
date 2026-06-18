@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg-contrast: #ffffff;
+  --text-contrast: #0f172a; /* Slate 900 */
+  --text-contrast-muted: #334155; /* Slate 700 - AAA level */
+  --border-contrast: #cbd5e1; /* Slate 300 */
+  --card-contrast-bg: #ffffff;
+  --card-contrast-border: #cbd5e1; /* Slate 300 */
+  --input-contrast-bg: #ffffff;
+  --input-contrast-border: #94a3b8; /* Slate 400 - high contrast */
+  --input-contrast-placeholder: #475569; /* Slate 600 */
+  --btn-primary-bg: #4f46e5;
+  --btn-primary-text: #ffffff;
+}
+
+.dark {
+  --bg-contrast: #090d16; /* Deep dark void space */
+  --text-contrast: #f8fafc; /* Slate 50 */
+  --text-contrast-muted: #e2e8f0; /* Slate 200 - high level */
+  --border-contrast: #475569; /* Slate 600 */
+  --card-contrast-bg: #111827; /* Slate 900 equivalent */
+  --card-contrast-border: #374151; /* Slate 750 / gray-700 */
+  --input-contrast-bg: #030712; /* Slate 950 */
+  --input-contrast-border: #6b7280; /* Gray 500 - high visibility border */
+  --input-contrast-placeholder: #cbd5e1; /* Slate 300 */
+  --btn-primary-bg: #6366f1;
+  --btn-primary-text: #ffffff;
+}
+
+@theme {
+  --font-sans: "Inter", "Space Grotesk", system-ui, sans-serif;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  
+  --color-highcontrast-bg: var(--bg-contrast);
+  --color-highcontrast-text: var(--text-contrast);
+  --color-highcontrast-muted: var(--text-contrast-muted);
+  --color-highcontrast-border: var(--border-contrast);
+  --color-highcontrast-card: var(--card-contrast-bg);
+  --color-highcontrast-card-border: var(--card-contrast-border);
+  --color-highcontrast-input: var(--input-contrast-bg);
+  --color-highcontrast-input-border: var(--input-contrast-border);
+  --color-highcontrast-placeholder: var(--input-contrast-placeholder);
+}
+
+/* Ensure inputs, select components, and form placeholders have great contrast */
+input::placeholder, textarea::placeholder {
+  color: var(--input-contrast-placeholder) !important;
+  opacity: 1 !important;
+}
+
+/* Base high-contrast overrides across standard interactive tags */
+input, select, textarea {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom scrollbar matching sleek design */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Deltaclause Internship Portal",
+  "description": "An industry-grade internship & training portal featuring bento-grid dashboards, custom payment workflows, task submission lists, digital certificate generation, verification lookup, and a robust referral system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
