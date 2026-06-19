@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Search, ShieldAlert, ShieldCheck, Calendar, Award, FileCheck, CheckCircle2, Copy, Download } from 'lucide-react';
 import { Certificate } from '../types';
 import { downloadCertificate } from '../utils/documentGenerator';
+import { verifyCertificateOnBackend } from '../utils/backendService';
 
 interface Props {
   certificates: Certificate[];
@@ -17,13 +18,32 @@ export default function VerificationDesk({ certificates }: Props) {
   const [searchResult, setSearchResult] = useState<Certificate | null>(null);
   const [searched, setSearched] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Trigger search
-  const handleVerify = (idToVerify: string) => {
+  const handleVerify = async (idToVerify: string) => {
     const formattedId = idToVerify.trim().toUpperCase();
+    if (!formattedId) return;
+
+    setLoading(true);
+    // 1. Try backend verification first
+    try {
+      const backendCert = await verifyCertificateOnBackend(formattedId);
+      if (backendCert) {
+        setSearchResult(backendCert);
+        setSearched(true);
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend Verify failed, falling back to local fallback state:', err);
+    }
+
+    // 2. Fallback to local certificates array
     const found = certificates.find((c) => c.id.toUpperCase() === formattedId);
     setSearchResult(found || null);
     setSearched(true);
+    setLoading(false);
   };
 
   const handleCopy = (id: string) => {

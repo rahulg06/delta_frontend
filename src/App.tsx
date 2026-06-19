@@ -26,7 +26,12 @@ import { DocumentHead } from './components/DocumentHead';
 import { 
   signInBackend, requestSignUpOtp, verifySignUpOtp, AuthResponse,
   createInternshipOnBackend, evaluateEnrollmentOnBackend,
-  requestForgotPasswordOtp, resetPasswordWithOtp, fetchCatalogFromBackend
+  requestForgotPasswordOtp, resetPasswordWithOtp, fetchCatalogFromBackend,
+  applyForProgram, fetchMyEnrollments, submitMilestoneOnBackend,
+  fetchTicketsOnBackend, createTicketOnBackend, replyToTicketOnBackend, resolveTicketOnBackend,
+  fetchReferralsOnBackend, addReferralOnBackend, updateReferralActionOnBackend,
+  fetchAnnouncementsOnBackend, createAnnouncementOnBackend, deleteAnnouncementOnBackend,
+  fetchRefundThresholdOnBackend, updateRefundThresholdOnBackend
 } from './utils/backendService';
 
 import { 
@@ -314,6 +319,89 @@ export default function App() {
       active = false;
     };
   }, []);
+
+  // Load dynamic student data and server settings from backend when logged in or initialized
+  useEffect(() => {
+    let active = true;
+
+    const syncSystemSettings = async () => {
+      try {
+        const threshold = await fetchRefundThresholdOnBackend();
+        if (threshold !== null && active) {
+          setRefundThreshold(threshold);
+        }
+        const remoteAnnouncements = await fetchAnnouncementsOnBackend();
+        if (remoteAnnouncements && remoteAnnouncements.length > 0 && active) {
+          setAnnouncements(remoteAnnouncements);
+        }
+      } catch (err) {
+        console.warn('System settings fetch offline:', err);
+      }
+    };
+    syncSystemSettings();
+
+    const syncUserData = async () => {
+      if (!currentUser) return;
+      try {
+        // Fetch enrollments
+        const remoteEnrollments = await fetchMyEnrollments();
+        if (remoteEnrollments && remoteEnrollments.length > 0 && active) {
+          console.log('%c[Full-Stack Enrollments] Syncing user achievements from Spring Boot database...', 'color: #3b82f6; font-weight: bold;');
+          setEnrollments((prev) => {
+            const merged = [...prev];
+            remoteEnrollments.forEach((re: any) => {
+              if (!merged.some(m => m.id === re.id)) {
+                merged.unshift(re);
+              } else {
+                const idx = merged.findIndex(m => m.id === re.id);
+                merged[idx] = { ...merged[idx], ...re };
+              }
+            });
+            return merged;
+          });
+        }
+
+        // Fetch tickets
+        const remoteTickets = await fetchTicketsOnBackend();
+        if (remoteTickets && remoteTickets.length > 0 && active) {
+          setTickets((prev) => {
+            const merged = [...prev];
+            remoteTickets.forEach((rt: any) => {
+              if (!merged.some(m => m.id === rt.id)) {
+                merged.unshift(rt);
+              } else {
+                const idx = merged.findIndex(m => m.id === rt.id);
+                merged[idx] = { ...merged[idx], ...rt };
+              }
+            });
+            return merged;
+          });
+        }
+
+        // Fetch referrals
+        const remoteReferrals = await fetchReferralsOnBackend();
+        if (remoteReferrals && remoteReferrals.length > 0 && active) {
+          setReferrals((prev) => {
+            const merged = [...prev];
+            remoteReferrals.forEach((rr: any) => {
+              if (!merged.some(m => m.id === rr.id)) {
+                merged.unshift(rr);
+              } else {
+                const idx = merged.findIndex(m => m.id === rr.id);
+                merged[idx] = { ...merged[idx], ...rr };
+              }
+            });
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('Backend user data sync offline:', err);
+      }
+    };
+    syncUserData();
+
+    return () => { active = false; };
+  }, [currentUser]);
 
   // Synchronize URL Hash with activeTab for deep-linking & LinkedIn recruit shares
   useEffect(() => {
@@ -719,19 +807,41 @@ export default function App() {
 
     setEnrollments([newEnrollment, ...enrollments]);
 
+    // Persist on database backend
+    applyForProgram(newEnrollment).then((backendResult) => {
+      if (backendResult && backendResult.id) {
+        console.log('Enrollment successfully persisted on backend DB:', backendResult);
+        // Safely update with the actual server-generated enrollment ID
+        setEnrollments((prev) => 
+          prev.map((e) => e.id === newEnrollment.id ? { ...e, ...backendResult } : e)
+        );
+      }
+    }).catch(err => {
+      console.warn('Backend enrollment persistent task failure:', err);
+    });
+
     // Handle referral enrollment tracking
     if (refCodeApplied && refCodeApplied.trim()) {
       // Find matching referrer, adding referee info
       const newReferral: Referral = {
         id: `ref-${Math.floor(1000 + Math.random() * 9000)}`,
         referrerEmail: refCodeApplied.trim(),
-        referredEmail: currentUser.email,
-        referredName: currentUser.name,
+        referredEmail: currentUser?.email || '',
+        referredName: currentUser?.name || '',
         signupDate: new Date().toISOString().substring(0, 10),
         status: 'joined', // starts as joined, moves to 'enrolled' once payment approved!
         rewardClaimed: false
       };
       setReferrals([newReferral, ...referrals]);
+
+      addReferralOnBackend(refCodeApplied.trim(), currentUser?.email || '', currentUser?.name || '').then((backendResult) => {
+        if (backendResult && backendResult.id) {
+          console.log('Referral successfully saved on backend DB:', backendResult);
+          setReferrals(prev => prev.map(r => r.id === newReferral.id ? backendResult : r));
+        }
+      }).catch(err => {
+        console.warn('Backend referral task registry offline:', err);
+      });
     }
 
     // Switch view to student dashboard to wait for approval
@@ -753,14 +863,22 @@ export default function App() {
       return e;
     });
     setEnrollments(updated);
+
+    submitMilestoneOnBackend(enrollmentId, url, note).then((backendResult) => {
+      if (backendResult) {
+        console.log('Milestone submission successfully updated on backend:', backendResult);
+      }
+    }).catch(err => {
+      console.warn('Backend milestone submission warning:', err);
+    });
   };
 
   // Student Actions: Support tickets
   const handleOpenTicket = (subject: string, message: string) => {
     const newTicket: SupportTicket = {
       id: `tkt-${Math.floor(100 + Math.random() * 900)}`,
-      studentEmail: currentUser.email,
-      studentName: currentUser.name,
+      studentEmail: currentUser?.email || '',
+      studentName: currentUser?.name || '',
       subject,
       message,
       status: 'open',
@@ -774,6 +892,15 @@ export default function App() {
       ]
     };
     setTickets([newTicket, ...tickets]);
+
+    createTicketOnBackend(subject, message).then((backendResult) => {
+      if (backendResult && backendResult.id) {
+        console.log('Ticket successfully created on database backend:', backendResult);
+        setTickets(prev => prev.map(t => t.id === newTicket.id ? backendResult : t));
+      }
+    }).catch(err => {
+      console.warn('Backend ticket creation offline:', err);
+    });
   };
 
   const handleStudentTicketReply = (ticketId: string, replyMsg: string) => {
@@ -794,6 +921,14 @@ export default function App() {
       return t;
     });
     setTickets(updated);
+
+    replyToTicketOnBackend(ticketId, replyMsg, 'student').then((backendResult) => {
+      if (backendResult) {
+        console.log('Ticket reply successfully persisted on database backend:', backendResult);
+      }
+    }).catch(err => {
+      console.warn('Backend ticket reply offline:', err);
+    });
   };
 
   // Admin Actions: Approve student's payment, unlocks deliverables and update referral status
@@ -823,6 +958,19 @@ export default function App() {
 
     setEnrollments(updatedEnrollments);
     setReferrals(updatedReferrals);
+
+    // Sync referral reward state update on backend
+    referrals.forEach((r) => {
+      if (r.referredEmail.toLowerCase() === targetEnrollment.studentEmail.toLowerCase()) {
+        updateReferralActionOnBackend(r.id, 'enrolled').then((backendResult) => {
+          if (backendResult) {
+            console.log('Referral state synced on backend database:', backendResult);
+          }
+        }).catch(err => {
+          console.warn('Backend referral status sync offline:', err);
+        });
+      }
+    });
 
     // Call Spring Boot evaluate API in parallel to dispatch the dynamic Offer Letter email
     evaluateEnrollmentOnBackend(enrollmentId, 'active');
@@ -910,6 +1058,44 @@ export default function App() {
     }
   };
 
+  const handleUpdateRefundThreshold = (val: number) => {
+    setRefundThreshold(val);
+    updateRefundThresholdOnBackend(val).catch(err => {
+      console.warn('Backend update refund threshold offline:', err);
+    });
+  };
+
+  const handleUpdateAnnouncements = async (updated: Announcement[]) => {
+    // Determine if we added or removed an announcement
+    if (updated.length > announcements.length) {
+      // Find what was added
+      const added = updated.filter(u => !announcements.some(a => String(a.id) === String(u.id)));
+      if (added.length > 0) {
+        setAnnouncements(updated);
+        try {
+          await createAnnouncementOnBackend(added[0]);
+          console.log('Announcement successfully synchronized on backend database.');
+        } catch (err) {
+          console.warn('Backend create announcement offline:', err);
+        }
+      }
+    } else if (updated.length < announcements.length) {
+      // Find what was deleted
+      const deleted = announcements.filter(a => !updated.some(u => String(u.id) === String(a.id)));
+      if (deleted.length > 0) {
+        setAnnouncements(updated);
+        try {
+          await deleteAnnouncementOnBackend(deleted[0].id);
+          console.log('Announcement successfully retracted from backend database.');
+        } catch (err) {
+          console.warn('Backend delete announcement offline:', err);
+        }
+      }
+    } else {
+      setAnnouncements(updated);
+    }
+  };
+
   // Admin Actions: Reply to tickets
   const handleResolveTicket = (ticketId: string, replyMessage: string) => {
     const updated = tickets.map((t) => {
@@ -930,6 +1116,14 @@ export default function App() {
       return t;
     });
     setTickets(updated);
+
+    resolveTicketOnBackend(ticketId, replyMessage).then((backendResult) => {
+      if (backendResult) {
+        console.log('Ticket resolved successfully on backend database:', backendResult);
+      }
+    }).catch(err => {
+      console.warn('Backend ticket resolution offline:', err);
+    });
   };
 
   // Student Actions: Claim full refund once referral N is met
@@ -1489,14 +1683,14 @@ export default function App() {
                 tickets={tickets}
                 certificates={certificates}
                 refundThreshold={refundThreshold}
-                setRefundThreshold={setRefundThreshold}
+                setRefundThreshold={handleUpdateRefundThreshold}
                 onApprovePayment={handleApprovePayment}
                 onRejectPayment={handleRejectPayment}
                 onGradeSubmission={handleGradeSubmission}
                 onResolveTicket={handleResolveTicket}
                 onUpdateInternshipCatalog={setInternships}
                 announcements={announcements}
-                onUpdateAnnouncements={setAnnouncements}
+                onUpdateAnnouncements={handleUpdateAnnouncements}
               />
             </div>
           )}
@@ -2130,3 +2324,4 @@ export default function App() {
     </div>
   );
 }
+  

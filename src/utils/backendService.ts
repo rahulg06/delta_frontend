@@ -276,3 +276,381 @@ export async function resetPasswordWithOtp(email: string, code: string, newPassw
     throw err;
   }
 }
+
+/**
+ * Sends a new enrollment request to the backend.
+ */
+export async function applyForProgram(enrollment: any): Promise<any> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/enrollments/apply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        id: enrollment.id,
+        internshipId: enrollment.internshipId,
+        studentName: enrollment.studentName,
+        studentEmail: enrollment.studentEmail,
+        status: enrollment.status,
+        durationMonths: enrollment.durationMonths,
+        transactionId: enrollment.transactionId,
+        paymentScreenshotUrl: enrollment.paymentScreenshotUrl,
+        studentPhone: enrollment.studentPhone,
+        qualification: enrollment.qualification,
+        collegeName: enrollment.collegeName,
+        domainApplied: enrollment.domainApplied,
+        agreedToPhases: enrollment.agreedToPhases,
+        agreedToPayment: enrollment.agreedToPayment
+      })
+    });
+
+    if (response.ok) {
+      return await response.json();
+    } else {
+      const text = await response.text();
+      console.warn('Backend enrollment creation warning:', text);
+    }
+  } catch (err) {
+    console.warn('Backend applyForProgram offline:', err);
+  }
+  return null;
+}
+
+/**
+ * Fetches current user's enrollments from Spring Boot or mock backend
+ */
+export async function fetchMyEnrollments(): Promise<any[]> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return [];
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/enrollments/my`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend fetchMyEnrollments offline:', err);
+  }
+  return [];
+}
+
+/**
+ * Submits work project milestone link to backend.
+ */
+export async function submitMilestoneOnBackend(
+  enrollmentId: string,
+  submissionUrl: string,
+  submissionNote: string
+): Promise<any> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/enrollments/${enrollmentId}/submit?submissionUrl=${encodeURIComponent(submissionUrl)}&submissionNote=${encodeURIComponent(submissionNote)}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend submit milestone offline:', err);
+  }
+  return null;
+}
+
+/**
+ * Verifies certificate validity against dynamic backend certificates registry
+ */
+export async function verifyCertificateOnBackend(certificateId: string): Promise<any> {
+  try {
+    const cleanId = certificateId.trim().toUpperCase();
+    const response = await fetch(`${BACKEND_URL}/api/certificates/verify/${encodeURIComponent(cleanId)}`, {
+      method: 'GET'
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend verifyCertificate offline:', err);
+  }
+  return null;
+}
+
+// --- SUPPORT TICKETS API SERVICE ---
+
+export async function fetchTicketsOnBackend(): Promise<any[]> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return [];
+  const role = localStorage.getItem('dc_user_role');
+
+  try {
+    const endpoint = role === 'ROLE_ADMIN' ? '/api/tickets/all' : '/api/tickets/my';
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend fetchTickets offline:', err);
+  }
+  return [];
+}
+
+export async function createTicketOnBackend(subject: string, message: string): Promise<any> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/tickets/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ subject, message })
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend createTicket offline:', err);
+  }
+  return null;
+}
+
+export async function replyToTicketOnBackend(ticketId: string, message: string, sender?: string): Promise<any> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/tickets/${ticketId}/reply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ message, sender })
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend replyToTicket offline:', err);
+  }
+  return null;
+}
+
+export async function resolveTicketOnBackend(ticketId: string, replyMessage?: string): Promise<any> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/tickets/${ticketId}/resolve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ replyMessage })
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend resolveTicket offline:', err);
+  }
+  return null;
+}
+
+
+// --- REFERRALS API SERVICE ---
+
+export async function fetchReferralsOnBackend(): Promise<any[]> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return [];
+  const role = localStorage.getItem('dc_user_role');
+
+  try {
+    const endpoint = role === 'ROLE_ADMIN' ? '/api/referrals/all' : '/api/referrals/my';
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend fetchReferrals offline:', err);
+  }
+  return [];
+}
+
+export async function addReferralOnBackend(referrerEmail: string, referredEmail: string, referredName: string): Promise<any> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/referrals/add`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ referrerEmail, referredEmail, referredName })
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend addReferral offline:', err);
+  }
+  return null;
+}
+
+export async function updateReferralActionOnBackend(id: string, status?: string, rewardClaimed?: boolean): Promise<any> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/referrals/${id}/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status, rewardClaimed })
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend updateReferralAction offline:', err);
+  }
+  return null;
+}
+
+
+// --- ANNOUNCEMENTS API SERVICE ---
+
+export async function fetchAnnouncementsOnBackend(): Promise<any[]> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/announcements/all`, {
+      method: 'GET'
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend fetchAnnouncements offline:', err);
+  }
+  return [];
+}
+
+export async function createAnnouncementOnBackend(announcement: any): Promise<any> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/announcements/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        id: announcement.id,
+        title: announcement.title,
+        message: announcement.message,
+        targetInternshipId: announcement.targetInternshipId,
+        targetDuration: announcement.targetDuration,
+        badge: announcement.badge
+      })
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Backend createAnnouncement offline:', err);
+  }
+  return null;
+}
+
+export async function deleteAnnouncementOnBackend(id: string): Promise<boolean> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return false;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/announcements/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    return response.ok;
+  } catch (err) {
+    console.warn('Backend deleteAnnouncement offline:', err);
+  }
+  return false;
+}
+
+
+// --- REFUND THRESHOLD SETTING ---
+
+export async function fetchRefundThresholdOnBackend(): Promise<number | null> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/settings/refund-threshold`, {
+      method: 'GET'
+    });
+    if (response.ok) {
+      const data = await response.json();
+      return data.refundThreshold;
+    }
+  } catch (err) {
+    console.warn('Backend fetchRefundThreshold offline:', err);
+  }
+  return null;
+}
+
+export async function updateRefundThresholdOnBackend(threshold: number): Promise<boolean> {
+  const token = localStorage.getItem('dc_bearer_token');
+  if (!token) return false;
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/settings/refund-threshold`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ threshold })
+    });
+    return response.ok;
+  } catch (err) {
+    console.warn('Backend updateRefundThreshold offline:', err);
+  }
+  return false;
+}
+
+
+
