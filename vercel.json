@@ -1,0 +1,13 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://deltabackend-production-79c7.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/((?!assets/|.*\\..*).*)$",
+      "destination": "/index.html"
+    }
+  ]
+}
