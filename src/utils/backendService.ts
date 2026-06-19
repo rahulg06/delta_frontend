@@ -5,9 +5,9 @@
 
 // Determine secure production-ready dynamic backend URL
 export const BACKEND_URL = ((import.meta as any).env?.VITE_API_URL as string) || 
-  (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1')
-    ? window.location.origin 
-    : 'http://localhost:8080');
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1'))
+    ? 'http://localhost:8080'
+    : 'https://deltabackend-production-79c7.up.railway.app');
 
 export interface AuthResponse {
   token: string;
